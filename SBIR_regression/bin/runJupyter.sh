@@ -1,6 +1,7 @@
 #!/bin/bash -x
 
-user=$USER
+# user=$USER
+user=$(whoami)
 
 if [ "$user" != "root" ]; then
     echo "Must be root in docker to run this command, exiting..."
