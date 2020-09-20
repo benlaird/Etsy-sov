@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 
 from tkinter import ttk, BooleanVar, Tk, Image, PhotoImage, Label, Scrollbar, Canvas, Frame
@@ -10,11 +12,11 @@ from tile_icon import TileIcon
 from PIL import Image as PILImage
 from PIL import ImageTk
 
-# Num tiles per column
-NUM_TILES_PER_COL = 5  # 13
 NUM_OUTLINE_COLS = 2
-NUM_IMAGE_COLS = 5
+NUM_IMAGE_COLS = 4
 NUM_COLS = NUM_IMAGE_COLS + NUM_OUTLINE_COLS
+IMAGE_WIDTH = 230
+IMAGE_HEIGHT = 180
 
 WINDOW_WIDTH = 1330  # This is the width of the Etsy header bar
 WINDOW_HEIGHT = 800
@@ -25,22 +27,23 @@ global images_clusters
 global frame_rhs
 
 
-def resize(img, new_width):
+def resize(img, new_width, new_height):
     # percent by which the image is resized
 
     if new_width is None:
         new_width = 512
     w, h = img.size
-    # Scale to the shortest dimension
-    if w > h:
-        scale_percent = new_width / w
+
+    if h > w:
+        scale_percent = new_height / h
     else:
-        scale_percent = new_width / h
-    print(f"Org width: {w} Org height: {h} Scale percent: {scale_percent}")
+        scale_percent = new_width / w
 
     # calculate the scale percent of original dimensions
     new_width = int(w * scale_percent)
     new_height = int(h * scale_percent)
+
+    print(f"Org width: {w} Org height: {h} Scale percent: {scale_percent} new_width: {new_width} new_height: {new_height}")
 
     maxsize = (new_width, new_height)
     img.thumbnail(maxsize, PILImage.ANTIALIAS)
@@ -57,22 +60,19 @@ def get_files_in_folder(path, suffix):
     return onlyfiles
 
 
-def display_outlines(frame, outline_dir, num_cols):
+def display_outlines(frame, outline_dir, tiles_per_col, num_cols):
     TILE_WIDTH = 128
     onlyfiles = get_files_in_folder(outline_dir, '.jpg')
     onlyfiles = sorted(onlyfiles, reverse=True)
     print(f"Files: {onlyfiles}")
     tiles = []
 
-    print(f"num_cols: num_cols")
-    # Tile the first max_images_to tile
-
     i = 0
     col = 0
     for img_file in onlyfiles:
-        col = i // NUM_TILES_PER_COL
-        row = i % NUM_TILES_PER_COL
-        print(f"i: {i} row: {row} col: {col}")
+        col = i // tiles_per_col
+        row = i % tiles_per_col
+        # print(f"i: {i} row: {row} col: {col}")
         if col >= num_cols:
             break
 
@@ -84,6 +84,7 @@ def display_outlines(frame, outline_dir, num_cols):
         # photo = PhotoImage(file='lena.png')
         label = Label(frame, image=imgtk)
         tile = TileIcon(img_file, imgtk)
+        print(f"Created tile: {tile}")
 
         label.grid(column=col, row=row)
         eval_link = lambda tile: (lambda event: outline_clicked(tile, event))
@@ -106,26 +107,34 @@ def add_image_to_frame(frame, img_file):
 
 
 def display_images(frame, images, images_per_col, num_cols):
-    IMAGE_WIDTH = 220
 
+    num_not_exists = 0
+    num_cached = 0
+    num_saved = 0
     i = 0
     col = 0
     for img_file in images:
         img_file = img_file.replace('/root/Etsy-sov/SBIR_regression/', '/Users/rjohnsonlaird/Documents/', 1)
         col = i // images_per_col
         row = i % images_per_col
-        print(f"i: {i} row: {row} col: {col}")
+        # print(f"i: {i} row: {row} col: {col}")
         if col >= num_cols:
             break
 
-        use_cv2 = False
         if not path.exists(img_file):
-            print(f"File doesn't exist: {img_file}")
+            num_not_exists += 1
             continue
+        (filename, ext) = os.path.splitext(img_file)
+        thumb_file = filename + "-thumb" + ext
+        if path.exists(thumb_file):
+            num_cached += 1
+            im = PILImage.open(thumb_file)
+        else:
+            im = PILImage.open(img_file)
+            im = resize(im, IMAGE_WIDTH, IMAGE_HEIGHT)
+            im.save(thumb_file, "JPEG")
+            num_saved += 1
 
-        im = PILImage.open(img_file)
-        # im = im.resize((IMAGE_WIDTH, IMAGE_WIDTH))
-        im = resize(im, IMAGE_WIDTH)
         imgtk = ImageTk.PhotoImage(im)
 
         label = Label(frame, image=imgtk)
@@ -133,13 +142,16 @@ def display_images(frame, images, images_per_col, num_cols):
 
         label.grid(column=col, row=row, padx=5, pady=5)
         i += 1
+    print(f"Num read from cache: {num_cached} num saved: {num_saved} num missing: {num_not_exists}")
 
 
 def outline_clicked(tile, event):
     print(f"clicked at {event.x}, {event.y}")
     print(f"tile: {tile}")
     ThumbnailImage.delete_objects()
-    display_images(frame_rhs, images_clusters[tile.filename], 6, 4)
+    num_images_per_col = round( len(images_clusters[tile.filename]) / NUM_IMAGE_COLS)
+    print(f"Num images per col: {num_images_per_col}")
+    display_images(frame_rhs, images_clusters[tile.filename], num_images_per_col, NUM_IMAGE_COLS)
 
 
 def read_outline_json():
@@ -147,10 +159,10 @@ def read_outline_json():
 
     with open('outline_dict.json') as f:
         data = json.load(f)
-    print("In read_outline_json")
-    for k in data.keys():
-        print(f"key: {k} num images: {len(data[k])}")
-    print("End of read_outline_json")
+    # print("In read_outline_json")
+    # for k in data.keys():
+        # print(f"key: {k} num images: {len(data[k])}")
+    # print("End of read_outline_json")
     return data
 
 
@@ -181,7 +193,7 @@ def main():
 
     root = Tk()
 
-    IMAGE_FOLDER = "/Users/rjohnsonlaird/Documents/lampshades_images_old/lampshades/il"
+    IMAGE_FOLDER = "/Users/rjohnsonlaird/Documents/lampshades_images/il"
     OUTLINE_FOLDER = "./images/Outlines"
     image_files = glob.glob(IMAGE_FOLDER + "/*/*/*.jpg")
     print(f"Found {len(image_files)}")
@@ -198,7 +210,6 @@ def main():
     root.grid_rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
 
-    #content = create_frame_with_scroll(root, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
     content = ttk.Frame(root)
 
     etsy_top_frame = ttk.Frame(content, borderwidth=5, width=RHS_WIDTH, height=200)
@@ -217,7 +228,10 @@ def main():
     frame_lhs_outlines.grid(column=0, row=1, sticky='N')
     # frame_rhs.grid(column=1, row=1)
 
-    display_outlines(frame_lhs_outlines, OUTLINE_FOLDER, 2)
+    num_outlines = len(get_files_in_folder(outline_dir, '.jpg'))
+    num_outlines_per_col = round(num_outlines / NUM_OUTLINE_COLS)
+    print(f"Num outlines per col: {num_outlines_per_col}")
+    display_outlines(frame_lhs_outlines, OUTLINE_FOLDER, num_outlines_per_col, NUM_OUTLINE_COLS)
     images_clusters = read_outline_json()
     add_image_to_frame(etsy_top_frame, 'etsyFrame/topFrame.png')
     add_image_to_frame(etsy_lhs_frame, 'etsyFrame/filterCriteria.png')
