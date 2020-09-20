@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 
 from tkinter import ttk, BooleanVar, Tk, Image, PhotoImage, Label, Scrollbar, Canvas, Frame
-import cv2
 from os import listdir, path
 from os.path import isfile, join
 import glob
@@ -25,33 +24,27 @@ RHS_WIDTH = WINDOW_WIDTH - LHS_WIDTH
 global images_clusters
 global frame_rhs
 
-def read_image(file_path):
-    print(f"file_path: {file_path}")
-    # load and display it in grayscale
-    im = cv2.imread(file_path, cv2.IMREAD_COLOR)  # IMREAD_GRAYSCALE)
-    # im = plt.imread(file_path)
-    h, w = im.shape[:2]
-    # print(im.shape)
-    return im
 
-
-def resize(img, width=None):
+def resize(img, new_width):
     # percent by which the image is resized
 
-    if width is None:
-        width = 512
-    scale_percent = width / img.shape[1]
-    print(f"Org width: {img.shape[1]} Org height: {img.shape[0]} Scale percent: {scale_percent}")
+    if new_width is None:
+        new_width = 512
+    w, h = img.size
+    # Scale to the shortest dimension
+    if w > h:
+        scale_percent = new_width / w
+    else:
+        scale_percent = new_width / h
+    print(f"Org width: {w} Org height: {h} Scale percent: {scale_percent}")
 
     # calculate the scale percent of original dimensions
-    width = int(img.shape[1] * scale_percent)
-    height = int(img.shape[0] * scale_percent)
+    new_width = int(w * scale_percent)
+    new_height = int(h * scale_percent)
 
-    # resize image
-    # small_img = cv2.resize(img, fx=scale_percent, fy=scale_percent)
-
-    small_img = cv2.resize(img, (width, height))
-    return small_img
+    maxsize = (new_width, new_height)
+    img.thumbnail(maxsize, PILImage.ANTIALIAS)
+    return img
 
 
 def get_files_in_folder(path, suffix):
@@ -83,19 +76,10 @@ def display_outlines(frame, outline_dir, num_cols):
         if col >= num_cols:
             break
 
-        use_cv2 = False
-        if use_cv2:
-            img = read_image(outline_dir + "/" + img_file)
-            img = resize(img, width=TILE_WIDTH)
-            # Convert the Image object into a TkPhoto object
-            im = PILImage.fromarray(img)
-            imgtk = ImageTk.PhotoImage(image=im)
-        else:
-            im = PILImage.open(outline_dir + "/" + img_file)
-            maxsize = (TILE_WIDTH, TILE_WIDTH)
-            im.thumbnail(maxsize, PILImage.ANTIALIAS)
-            #im = im.resize((TILE_WIDTH, TILE_WIDTH))
-            imgtk = ImageTk.PhotoImage(im)
+        im = PILImage.open(outline_dir + "/" + img_file)
+        maxsize = (TILE_WIDTH, TILE_WIDTH)
+        im.thumbnail(maxsize, PILImage.ANTIALIAS)
+        imgtk = ImageTk.PhotoImage(im)
 
         # photo = PhotoImage(file='lena.png')
         label = Label(frame, image=imgtk)
@@ -138,31 +122,17 @@ def display_images(frame, images, images_per_col, num_cols):
         if not path.exists(img_file):
             print(f"File doesn't exist: {img_file}")
             continue
-        if use_cv2:
-            img = read_image(img_file)
-            img = resize(img, width=IMAGE_WIDTH)
-            # Convert the Image object into a TkPhoto object
-            im = PILImage.fromarray(img)
-            imgtk = ImageTk.PhotoImage(image=im)
-        else:
-            im = PILImage.open(img_file)
-            im = im.resize((IMAGE_WIDTH, IMAGE_WIDTH))
-            imgtk = ImageTk.PhotoImage(im)
+
+        im = PILImage.open(img_file)
+        # im = im.resize((IMAGE_WIDTH, IMAGE_WIDTH))
+        im = resize(im, IMAGE_WIDTH)
+        imgtk = ImageTk.PhotoImage(im)
 
         label = Label(frame, image=imgtk)
         thumb_image = ThumbnailImage(img_file, imgtk, label)
 
         label.grid(column=col, row=row, padx=5, pady=5)
         i += 1
-
-
-def test_image():
-    # load and display it in grayscale
-    im = cv2.imread('lena.png', cv2.IMREAD_GRAYSCALE)
-    h, w = im.shape[:2]
-    print(im.shape)
-    plt.imshow(im, cmap='gray')
-    plt.show()
 
 
 def outline_clicked(tile, event):
