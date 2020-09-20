@@ -13,7 +13,8 @@ class ThumbnailImage:
     @classmethod
     def delete_objects(cls):
         for thumb in ThumbnailImage.thumbnails:
-            thumb.widget.forget()
+            # Using forget cause performance issues after more and more clicking
+            thumb.widget.destroy()
         ThumbnailImage.thumbnails = []
 
     def __repr__(self):
