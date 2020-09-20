@@ -142,6 +142,10 @@ def display_images(frame, images, images_per_col, num_cols):
 
         label.grid(column=col, row=row, padx=5, pady=5)
         i += 1
+    # Reset the scrollbar to the top, assumes the parent widget is a canvas with a scrollbar
+    canvas = frame.master
+    canvas.yview_moveto('0.0')
+
     print(f"Num read from cache: {num_cached} num saved: {num_saved} num missing: {num_not_exists}")
 
 
@@ -176,6 +180,7 @@ def create_frame_with_scroll(parent_widget, grid_col, grid_row, width, height):
     content = Frame(canvas)
     vsb = Scrollbar(parent_widget, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=vsb.set)
+    print(f"scroll bar position: {vsb.get()}")
 
     # vsb.pack(side="right", fill="y")
     # canvas.pack(side="left", fill="both", expand=True)
