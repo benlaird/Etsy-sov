@@ -16,12 +16,13 @@ NUM_OUTLINE_COLS = 2
 NUM_IMAGE_COLS = 4
 NUM_COLS = NUM_IMAGE_COLS + NUM_OUTLINE_COLS
 IMAGE_WIDTH = 230
-IMAGE_HEIGHT = 180
+IMAGE_HEIGHT = 230 # 180
 
 WINDOW_WIDTH = 1330  # This is the width of the Etsy header bar
 WINDOW_HEIGHT = 800
 LHS_WIDTH = 300
 RHS_WIDTH = WINDOW_WIDTH - LHS_WIDTH
+SHOW_IMAGE_NOS = True
 
 global images_clusters
 global frame_rhs
@@ -34,10 +35,9 @@ def resize(img, new_width, new_height):
         new_width = 512
     w, h = img.size
 
-    if h > w:
-        scale_percent = new_height / h
-    else:
-        scale_percent = new_width / w
+    scale_h_percent = new_height / h
+    scale_w_percent = new_width / w
+    scale_percent = min(scale_h_percent, scale_w_percent)
 
     # calculate the scale percent of original dimensions
     new_width = int(w * scale_percent)
@@ -70,9 +70,9 @@ def display_outlines(frame, outline_dir, tiles_per_col, num_cols):
     i = 0
     col = 0
     for img_file in onlyfiles:
-        col = i // tiles_per_col
-        row = i % tiles_per_col
-        # print(f"i: {i} row: {row} col: {col}")
+        col = i % num_cols
+        row = i // num_cols
+        print(f"i: {i} row: {row} col: {col}")
         if col >= num_cols:
             break
 
@@ -82,6 +82,7 @@ def display_outlines(frame, outline_dir, tiles_per_col, num_cols):
         imgtk = ImageTk.PhotoImage(im)
 
         # photo = PhotoImage(file='lena.png')
+
         label = Label(frame, image=imgtk)
         tile = TileIcon(img_file, imgtk)
         print(f"Created tile: {tile}")
@@ -106,7 +107,7 @@ def add_image_to_frame(frame, img_file):
     label.grid(column=0, row=0)
 
 
-def display_images(frame, images, images_per_col, num_cols):
+def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool, clear_cache: bool):
 
     num_not_exists = 0
     num_cached = 0
@@ -115,8 +116,8 @@ def display_images(frame, images, images_per_col, num_cols):
     col = 0
     for img_file in images:
         img_file = img_file.replace('/root/Etsy-sov/SBIR_regression/', '/Users/rjohnsonlaird/Documents/', 1)
-        col = i // images_per_col
-        row = i % images_per_col
+        col = i % num_cols
+        row = i // num_cols
         # print(f"i: {i} row: {row} col: {col}")
         if col >= num_cols:
             break
@@ -126,7 +127,7 @@ def display_images(frame, images, images_per_col, num_cols):
             continue
         (filename, ext) = os.path.splitext(img_file)
         thumb_file = filename + "-thumb" + ext
-        if path.exists(thumb_file):
+        if not clear_cache and path.exists(thumb_file):
             num_cached += 1
             im = PILImage.open(thumb_file)
         else:
@@ -137,10 +138,13 @@ def display_images(frame, images, images_per_col, num_cols):
 
         imgtk = ImageTk.PhotoImage(im)
 
-        label = Label(frame, image=imgtk)
+        if show_image_nos:
+            label = Label(frame, text=f"{i+1}", image=imgtk, compound='top')
+        else:
+            label = Label(frame, image=imgtk)
         thumb_image = ThumbnailImage(img_file, imgtk, label)
 
-        label.grid(column=col, row=row, padx=5, pady=5)
+        label.grid(column=col, row=row, padx=5, pady=5, sticky='S')
         i += 1
     # Reset the scrollbar to the top, assumes the parent widget is a canvas with a scrollbar
     canvas = frame.master
@@ -155,7 +159,7 @@ def outline_clicked(tile, event):
     ThumbnailImage.delete_objects()
     num_images_per_col = round( len(images_clusters[tile.filename]) / NUM_IMAGE_COLS)
     print(f"Num images per col: {num_images_per_col}")
-    display_images(frame_rhs, images_clusters[tile.filename], num_images_per_col, NUM_IMAGE_COLS)
+    display_images(frame_rhs, images_clusters[tile.filename], num_images_per_col, NUM_IMAGE_COLS, SHOW_IMAGE_NOS, False)
 
 
 def read_outline_json():
