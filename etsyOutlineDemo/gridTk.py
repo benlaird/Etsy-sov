@@ -1,8 +1,6 @@
 import os
 
-import matplotlib.pyplot as plt
-
-from tkinter import ttk, BooleanVar, Tk, Image, PhotoImage, Label, Scrollbar, Canvas, Frame
+from tkinter import ttk, Tk, Image, PhotoImage, Label, Scrollbar, Canvas, Frame
 from os import listdir, path
 from os.path import isfile, join
 import glob
@@ -19,13 +17,20 @@ IMAGE_WIDTH = 230
 IMAGE_HEIGHT = 230 # 180
 
 WINDOW_WIDTH = 1330  # This is the width of the Etsy header bar
-WINDOW_HEIGHT = 800
 LHS_WIDTH = 300
 RHS_WIDTH = WINDOW_WIDTH - LHS_WIDTH
 SHOW_IMAGE_NOS = True
 
+IMAGE_FOLDER = "/Users/rjohnsonlaird/Documents/lampshades_images/il"
+OUTLINE_FOLDER = "./images/Outlines"
+
 global images_clusters
 global frame_rhs
+
+
+def monitor_height(root):
+    h = root.winfo_screenheight()
+    return h
 
 
 def resize(img, new_width, new_height):
@@ -95,7 +100,7 @@ def display_outlines(frame, outline_dir, tiles_per_col, num_cols):
     return tiles
 
 
-def add_image_to_frame(frame, img_file):
+def add_tile_to_frame(frame, img_file):
     if not path.exists(img_file):
         print(f"File doesn't exist: {img_file}")
         return
@@ -104,6 +109,18 @@ def add_image_to_frame(frame, img_file):
     imgtk = ImageTk.PhotoImage(im)
     label = Label(frame, image=imgtk)
     tile = TileIcon(img_file, imgtk)
+    label.grid(column=0, row=0)
+
+# Images are destroyed when the frame is repopulated
+def add_image_to_frame(frame, img_file):
+    if not path.exists(img_file):
+        print(f"File doesn't exist: {img_file}")
+        return
+    im = PILImage.open(img_file)
+    # im = im.resize((IMAGE_WIDTH, IMAGE_WIDTH))
+    imgtk = ImageTk.PhotoImage(im)
+    label = Label(frame, image=imgtk)
+    ThumbnailImage(img_file, imgtk, label)
     label.grid(column=0, row=0)
 
 
@@ -146,8 +163,10 @@ def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool
 
         label.grid(column=col, row=row, padx=5, pady=5, sticky='S')
         i += 1
+
     # Reset the scrollbar to the top, assumes the parent widget is a canvas with a scrollbar
     canvas = frame.master
+    onFrameConfigure(canvas)
     canvas.yview_moveto('0.0')
 
     print(f"Num read from cache: {num_cached} num saved: {num_saved} num missing: {num_not_exists}")
@@ -179,19 +198,43 @@ def onFrameConfigure(canvas):
     canvas.configure(scrollregion=canvas.bbox("all"))
 
 
+def scroll_arrow(canvas, event):
+    if event.keysym == 'Up':
+        canvas.yview_scroll(-1, "units")
+    elif event.keysym == 'Down':
+        canvas.yview_scroll(1, "units")
+
+
+def scroll_mouse_wheel(canvas, event):
+    # This is hard-coded to Apple's "natural" scroll
+    if event.delta < 0:
+        canvas.yview_scroll(1, "units")
+    else:
+        canvas.yview_scroll(-1, "units")
+
+
 def create_frame_with_scroll(parent_widget, grid_col, grid_row, width, height):
+    scroll_units = 25 # Number of pixels to scroll frame up or down
     canvas = Canvas(parent_widget, borderwidth=0, width=width, height=height)
     content = Frame(canvas)
     vsb = Scrollbar(parent_widget, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=vsb.set)
-    print(f"scroll bar position: {vsb.get()}")
+    canvas.configure(yscrollincrement=scroll_units)
+    eval_link = lambda canvas: (lambda event: scroll_arrow(canvas, event))
+    eval_link_wheel = lambda canvas: (lambda event: scroll_mouse_wheel(canvas, event))
+    canvas.bind_all("<Up>", eval_link(canvas))
+    canvas.bind_all("<Down>",  eval_link(canvas))
+    canvas.bind_all("<MouseWheel>",  eval_link_wheel(canvas))
+
+    # canvas.bind("<Up>", lambda event: canvas.yview_scroll(-1 * event.delta, "units"))
+    # canvas.bind("<Down>", lambda event: canvas.yview_scroll(1 * event.delta, "units"))
 
     # vsb.pack(side="right", fill="y")
     # canvas.pack(side="left", fill="both", expand=True)
     canvas.grid(column=grid_col, row=grid_row, sticky='NSEW')
     vsb.grid(column=grid_col+1, row=grid_row, sticky='NS')
 
-    canvas.create_window((4, 4), window=content, anchor="nw")
+    canvas.create_window((0, 0), window=content, anchor="nw")
     content.bind("<Configure>", lambda event, canvas=canvas: onFrameConfigure(canvas))
     return content
 
@@ -201,14 +244,15 @@ def main():
     global frame_rhs
 
     root = Tk()
+    root.title("Etsy")
+    screen_height = monitor_height(root)
+    WINDOW_HEIGHT = screen_height - 250
+    print(f"Screen height: {screen_height} window height: {WINDOW_HEIGHT}")
 
-    IMAGE_FOLDER = "/Users/rjohnsonlaird/Documents/lampshades_images/il"
-    OUTLINE_FOLDER = "./images/Outlines"
-    image_files = glob.glob(IMAGE_FOLDER + "/*/*/*.jpg")
-    print(f"Found {len(image_files)}")
-    print(image_files[0], image_files[550])
-
-    outline_dir = "./images/Outlines"
+    if False:
+        image_files = glob.glob(IMAGE_FOLDER + "/*/*/*.jpg")
+        print(f"Found {len(image_files)}")
+        print(image_files[0], image_files[550])
 
     dpi_value = root.winfo_fpixels('1i')
     print(f"Default dpi: {dpi_value}")
@@ -237,13 +281,14 @@ def main():
     frame_lhs_outlines.grid(column=0, row=1, sticky='N')
     # frame_rhs.grid(column=1, row=1)
 
-    num_outlines = len(get_files_in_folder(outline_dir, '.jpg'))
+    num_outlines = len(get_files_in_folder(OUTLINE_FOLDER, '.jpg'))
     num_outlines_per_col = round(num_outlines / NUM_OUTLINE_COLS)
     print(f"Num outlines per col: {num_outlines_per_col}")
     display_outlines(frame_lhs_outlines, OUTLINE_FOLDER, num_outlines_per_col, NUM_OUTLINE_COLS)
     images_clusters = read_outline_json()
-    add_image_to_frame(etsy_top_frame, 'etsyFrame/topFrame.png')
-    add_image_to_frame(etsy_lhs_frame, 'etsyFrame/filterCriteria.png')
+    add_tile_to_frame(etsy_top_frame, 'etsyFrame/topFrame.png')
+    add_tile_to_frame(etsy_lhs_frame, 'etsyFrame/filterCriteria.png')
+    add_image_to_frame(frame_rhs, 'etsyFrame/Etsy-table-lamp-search-result.png')
     # display_images(frame_rhs, images_clusters['outline21.jpg'], 15, 4)
 
     root.mainloop()
