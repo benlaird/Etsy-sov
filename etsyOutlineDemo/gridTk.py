@@ -1,6 +1,8 @@
 import os
 
-from tkinter import ttk, Tk, Image, PhotoImage, Label, Scrollbar, Canvas, Frame
+from tkinter import Tk, Image, PhotoImage, Canvas, Label, Frame, W, E, N, S
+import tkinter.ttk as ttk
+from tkinter.ttk import Scrollbar
 from os import listdir, path
 from os.path import isfile, join
 import glob
@@ -88,7 +90,7 @@ def display_outlines(frame, outline_dir, tiles_per_col, num_cols):
 
         # photo = PhotoImage(file='lena.png')
 
-        label = Label(frame, image=imgtk)
+        label = Label(frame, image=imgtk, bg="white")
         tile = TileIcon(img_file, imgtk)
         print(f"Created tile: {tile}")
 
@@ -107,9 +109,10 @@ def add_tile_to_frame(frame, img_file):
     im = PILImage.open(img_file)
     # im = im.resize((IMAGE_WIDTH, IMAGE_WIDTH))
     imgtk = ImageTk.PhotoImage(im)
-    label = Label(frame, image=imgtk)
+    label = Label(frame, image=imgtk, bg="white")
     tile = TileIcon(img_file, imgtk)
     label.grid(column=0, row=0)
+
 
 # Images are destroyed when the frame is repopulated
 def add_image_to_frame(frame, img_file):
@@ -119,9 +122,9 @@ def add_image_to_frame(frame, img_file):
     im = PILImage.open(img_file)
     # im = im.resize((IMAGE_WIDTH, IMAGE_WIDTH))
     imgtk = ImageTk.PhotoImage(im)
-    label = Label(frame, image=imgtk)
+    label = Label(frame, image=imgtk, bg="white")
     ThumbnailImage(img_file, imgtk, label)
-    label.grid(column=0, row=0)
+    label.grid(column=0, row=0, sticky=W+E+N+S, padx=0, pady=0)
 
 
 def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool, clear_cache: bool):
@@ -156,9 +159,9 @@ def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool
         imgtk = ImageTk.PhotoImage(im)
 
         if show_image_nos:
-            label = Label(frame, text=f"{i+1}", image=imgtk, compound='top')
+            label = Label(frame, text=f"{i+1}", image=imgtk, compound='top', bg="white")
         else:
-            label = Label(frame, image=imgtk)
+            label = Label(frame, image=imgtk, bg="white")
         thumb_image = ThumbnailImage(img_file, imgtk, label)
 
         label.grid(column=col, row=row, padx=5, pady=5, sticky='S')
@@ -196,6 +199,7 @@ def read_outline_json():
 def onFrameConfigure(canvas):
     '''Reset the scroll region to encompass the inner frame'''
     canvas.configure(scrollregion=canvas.bbox("all"))
+    canvas.configure(background="white")
 
 
 def scroll_arrow(canvas, event):
@@ -214,12 +218,18 @@ def scroll_mouse_wheel(canvas, event):
 
 
 def create_frame_with_scroll(parent_widget, grid_col, grid_row, width, height):
+    # Initialize style
+    s = ttk.Style()
+    # Create style used by default for all Frames
+    s.configure('TFrame', background='blue')
+
     scroll_units = 25 # Number of pixels to scroll frame up or down
-    canvas = Canvas(parent_widget, borderwidth=0, width=width, height=height)
-    content = Frame(canvas)
+    canvas = Canvas(parent_widget, borderwidth=0, width=width, height=height, background="white")
+    content = Frame(canvas, bg="white",  highlightbackground="white", highlightcolor="white")
     vsb = Scrollbar(parent_widget, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=vsb.set)
     canvas.configure(yscrollincrement=scroll_units)
+    canvas.configure(background="white")
     eval_link = lambda canvas: (lambda event: scroll_arrow(canvas, event))
     eval_link_wheel = lambda canvas: (lambda event: scroll_mouse_wheel(canvas, event))
     canvas.bind_all("<Up>", eval_link(canvas))
@@ -245,6 +255,12 @@ def main():
 
     root = Tk()
     root.title("Etsy")
+    root.configure(background="white")
+    # style configuration
+    style = ttk.Style(root)
+    style.configure('TLabel', background='white')
+    style.configure('TFrame', background='white')
+
     screen_height = monitor_height(root)
     WINDOW_HEIGHT = screen_height - 250
     print(f"Screen height: {screen_height} window height: {WINDOW_HEIGHT}")
@@ -263,13 +279,13 @@ def main():
     root.grid_rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
 
-    content = ttk.Frame(root)
+    content = Frame(root, bg="white", borderwidth=0, highlightbackground="white", highlightcolor="white")
 
-    etsy_top_frame = ttk.Frame(content, borderwidth=5, width=RHS_WIDTH, height=200)
+    etsy_top_frame = Frame(content, borderwidth=0, width=RHS_WIDTH, height=200, bg="white")
     # frame_lhs = ttk.Frame(content, borderwidth=5, relief="sunken", width=LHS_WIDTH, height=400)
     frame_lhs = create_frame_with_scroll(content, 0, 1, LHS_WIDTH, WINDOW_HEIGHT)
-    frame_lhs_outlines = ttk.Frame(frame_lhs)
-    etsy_lhs_frame = ttk.Frame(frame_lhs, borderwidth=5, width=RHS_WIDTH, height=200)
+    frame_lhs_outlines = Frame(frame_lhs, bg="white")
+    etsy_lhs_frame = ttk.Frame(frame_lhs, borderwidth=0, width=RHS_WIDTH, height=200)
     frame_rhs = create_frame_with_scroll(content, 2, 1, RHS_WIDTH, WINDOW_HEIGHT)
 
     # This commented line screws up the scrolling
@@ -287,11 +303,12 @@ def main():
     display_outlines(frame_lhs_outlines, OUTLINE_FOLDER, num_outlines_per_col, NUM_OUTLINE_COLS)
     images_clusters = read_outline_json()
     add_tile_to_frame(etsy_top_frame, 'etsyFrame/topFrame.png')
-    add_tile_to_frame(etsy_lhs_frame, 'etsyFrame/filterCriteria.png')
+    add_tile_to_frame(etsy_lhs_frame, 'etsyFrame/Etsy-Filter-version2.png')
     add_image_to_frame(frame_rhs, 'etsyFrame/Etsy-table-lamp-search-result.png')
     # display_images(frame_rhs, images_clusters['outline21.jpg'], 15, 4)
 
     root.mainloop()
+
 
 
 main()
