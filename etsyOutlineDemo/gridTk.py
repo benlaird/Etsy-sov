@@ -12,16 +12,18 @@ from tile_icon import TileIcon
 from PIL import Image as PILImage
 from PIL import ImageTk
 
+from outline import Outline
+
 NUM_OUTLINE_COLS = 2
 NUM_IMAGE_COLS = 4
 NUM_COLS = NUM_IMAGE_COLS + NUM_OUTLINE_COLS
 IMAGE_WIDTH = 230
-IMAGE_HEIGHT = 230 # 180
+IMAGE_HEIGHT = 230  # 180
 
 WINDOW_WIDTH = 1330  # This is the width of the Etsy header bar
 LHS_WIDTH = 300
 RHS_WIDTH = WINDOW_WIDTH - LHS_WIDTH
-SHOW_IMAGE_NOS = True
+SHOW_IMAGE_NOS = False
 
 IMAGE_FOLDER = "/Users/rjohnsonlaird/Documents/lampshades_images/il"
 OUTLINE_FOLDER = "./images/Outlines"
@@ -50,7 +52,8 @@ def resize(img, new_width, new_height):
     new_width = int(w * scale_percent)
     new_height = int(h * scale_percent)
 
-    print(f"Org width: {w} Org height: {h} Scale percent: {scale_percent} new_width: {new_width} new_height: {new_height}")
+    print(
+        f"Org width: {w} Org height: {h} Scale percent: {scale_percent} new_width: {new_width} new_height: {new_height}")
 
     maxsize = (new_width, new_height)
     img.thumbnail(maxsize, PILImage.ANTIALIAS)
@@ -67,7 +70,7 @@ def get_files_in_folder(path, suffix):
     return onlyfiles
 
 
-def display_outlines(frame, outline_dir, tiles_per_col, num_cols):
+def display_outlines(frame, outline_dir, tiles_per_col, num_cols, Outline):
     TILE_WIDTH = 128
     onlyfiles = get_files_in_folder(outline_dir, '.jpg')
     onlyfiles = sorted(onlyfiles, reverse=True)
@@ -95,8 +98,8 @@ def display_outlines(frame, outline_dir, tiles_per_col, num_cols):
         print(f"Created tile: {tile}")
 
         label.grid(column=col, row=row)
-        eval_link = lambda tile: (lambda event: outline_clicked(tile, event))
-        label.bind("<Button-1>", eval_link(tile))
+        eval_link = lambda tile, outlines: (lambda event: outline_clicked(tile, outlines, event))
+        label.bind("<Button-1>", eval_link(tile, Outline))
         tiles.append(tile)
         i += 1
     return tiles
@@ -124,11 +127,10 @@ def add_image_to_frame(frame, img_file):
     imgtk = ImageTk.PhotoImage(im)
     label = Label(frame, image=imgtk, bg="white")
     ThumbnailImage(img_file, imgtk, label)
-    label.grid(column=0, row=0, sticky=W+E+N+S, padx=0, pady=0)
+    label.grid(column=0, row=0, sticky=N, padx=0, pady=0)
 
 
 def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool, clear_cache: bool):
-
     num_not_exists = 0
     num_cached = 0
     num_saved = 0
@@ -159,7 +161,7 @@ def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool
         imgtk = ImageTk.PhotoImage(im)
 
         if show_image_nos:
-            label = Label(frame, text=f"{i+1}", image=imgtk, compound='top', bg="white")
+            label = Label(frame, text=f"{i + 1}", image=imgtk, compound='top', bg="white")
         else:
             label = Label(frame, image=imgtk, bg="white")
         thumb_image = ThumbnailImage(img_file, imgtk, label)
@@ -168,20 +170,21 @@ def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool
         i += 1
 
     # Reset the scrollbar to the top, assumes the parent widget is a canvas with a scrollbar
-    canvas = frame.master
-    onFrameConfigure(canvas)
-    canvas.yview_moveto('0.0')
+    # canvas = frame.master
+    # canvas.yview_moveto('0.0')
 
     print(f"Num read from cache: {num_cached} num saved: {num_saved} num missing: {num_not_exists}")
 
 
-def outline_clicked(tile, event):
+def outline_clicked(tile, outline, event):
     print(f"clicked at {event.x}, {event.y}")
     print(f"tile: {tile}")
     ThumbnailImage.delete_objects()
-    num_images_per_col = round( len(images_clusters[tile.filename]) / NUM_IMAGE_COLS)
+    num_images_per_col = round(len(images_clusters[tile.filename]) / NUM_IMAGE_COLS)
     print(f"Num images per col: {num_images_per_col}")
-    display_images(frame_rhs, images_clusters[tile.filename], num_images_per_col, NUM_IMAGE_COLS, SHOW_IMAGE_NOS, False)
+    frame_rhs = outline.get_frame()
+    clusters = outline.get_clusters()
+    display_images(frame_rhs, clusters[tile.filename], num_images_per_col, NUM_IMAGE_COLS, SHOW_IMAGE_NOS, False)
 
 
 def read_outline_json():
@@ -191,7 +194,7 @@ def read_outline_json():
         data = json.load(f)
     # print("In read_outline_json")
     # for k in data.keys():
-        # print(f"key: {k} num images: {len(data[k])}")
+    # print(f"key: {k} num images: {len(data[k])}")
     # print("End of read_outline_json")
     return data
 
@@ -223,9 +226,9 @@ def create_frame_with_scroll(parent_widget, grid_col, grid_row, width, height):
     # Create style used by default for all Frames
     s.configure('TFrame', background='blue')
 
-    scroll_units = 25 # Number of pixels to scroll frame up or down
+    scroll_units = 25  # Number of pixels to scroll frame up or down
     canvas = Canvas(parent_widget, borderwidth=0, width=width, height=height, background="white")
-    content = Frame(canvas, bg="white",  highlightbackground="white", highlightcolor="white")
+    content = Frame(canvas, bg="white", highlightbackground="white", highlightcolor="white")
     vsb = Scrollbar(parent_widget, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=vsb.set)
     canvas.configure(yscrollincrement=scroll_units)
@@ -233,8 +236,8 @@ def create_frame_with_scroll(parent_widget, grid_col, grid_row, width, height):
     eval_link = lambda canvas: (lambda event: scroll_arrow(canvas, event))
     eval_link_wheel = lambda canvas: (lambda event: scroll_mouse_wheel(canvas, event))
     canvas.bind_all("<Up>", eval_link(canvas))
-    canvas.bind_all("<Down>",  eval_link(canvas))
-    canvas.bind_all("<MouseWheel>",  eval_link_wheel(canvas))
+    canvas.bind_all("<Down>", eval_link(canvas))
+    canvas.bind_all("<MouseWheel>", eval_link_wheel(canvas))
 
     # canvas.bind("<Up>", lambda event: canvas.yview_scroll(-1 * event.delta, "units"))
     # canvas.bind("<Down>", lambda event: canvas.yview_scroll(1 * event.delta, "units"))
@@ -242,7 +245,7 @@ def create_frame_with_scroll(parent_widget, grid_col, grid_row, width, height):
     # vsb.pack(side="right", fill="y")
     # canvas.pack(side="left", fill="both", expand=True)
     canvas.grid(column=grid_col, row=grid_row, sticky='NSEW')
-    vsb.grid(column=grid_col+1, row=grid_row, sticky='NS')
+    vsb.grid(column=grid_col + 1, row=grid_row, sticky='NS')
 
     canvas.create_window((0, 0), window=content, anchor="nw")
     content.bind("<Configure>", lambda event, canvas=canvas: onFrameConfigure(canvas))
@@ -279,36 +282,42 @@ def main():
     root.grid_rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
 
-    content = Frame(root, bg="white", borderwidth=0, highlightbackground="white", highlightcolor="white")
+    # content = Frame(root, bg="white", borderwidth=0, highlightbackground="white", highlightcolor="white")
+    content = create_frame_with_scroll(root, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
 
     etsy_top_frame = Frame(content, borderwidth=0, width=RHS_WIDTH, height=200, bg="white")
-    # frame_lhs = ttk.Frame(content, borderwidth=5, relief="sunken", width=LHS_WIDTH, height=400)
-    frame_lhs = create_frame_with_scroll(content, 0, 1, LHS_WIDTH, WINDOW_HEIGHT)
-    frame_lhs_outlines = Frame(frame_lhs, bg="white")
-    etsy_lhs_frame = ttk.Frame(frame_lhs, borderwidth=0, width=RHS_WIDTH, height=200)
-    frame_rhs = create_frame_with_scroll(content, 2, 1, RHS_WIDTH, WINDOW_HEIGHT)
+    frame_lhs = ttk.Frame(content, borderwidth=0, width=LHS_WIDTH, height=400)
+    # frame_lhs = create_frame_with_scroll(content, 0, 1, LHS_WIDTH, WINDOW_HEIGHT)
+    frame_lhs_outlines = Frame(frame_lhs, bg="white", borderwidth=0)
+    etsy_lhs_frame = Frame(frame_lhs, borderwidth=0, highlightbackground="white", highlightcolor="white",
+                           width=LHS_WIDTH, height=200, bg="white")
+
+    # frame_rhs = create_frame_with_scroll(content, 2, 1, RHS_WIDTH, WINDOW_HEIGHT)
+    frame_rhs = Frame(content, bg="white")
 
     # This commented line screws up the scrolling
-    content.grid(column=0, row=0)
+    # content.grid(column=0, row=0)
     etsy_top_frame.grid(column=0, row=0, columnspan=5, sticky='NW')
-    # frame_lhs.grid(column=0, row=1,  padx=15, pady=15, sticky='N')
-    frame_lhs_outlines.grid(column=0, row=1, sticky='N')
+    frame_lhs.grid(column=0, row=1, padx=0, pady=0, sticky='N')
+    frame_lhs_outlines.grid(column=0, row=1, sticky=N+S+E+W)
     etsy_lhs_frame.grid(column=0, row=0, sticky='N')
-    frame_lhs_outlines.grid(column=0, row=1, sticky='N')
-    # frame_rhs.grid(column=1, row=1)
+    frame_rhs.grid(column=2, row=1, sticky='N')
 
     num_outlines = len(get_files_in_folder(OUTLINE_FOLDER, '.jpg'))
     num_outlines_per_col = round(num_outlines / NUM_OUTLINE_COLS)
     print(f"Num outlines per col: {num_outlines_per_col}")
-    display_outlines(frame_lhs_outlines, OUTLINE_FOLDER, num_outlines_per_col, NUM_OUTLINE_COLS)
+
     images_clusters = read_outline_json()
+    Outline.set_clusters(images_clusters)
+    Outline.set_frame(frame_rhs)
+    display_outlines(frame_lhs_outlines, OUTLINE_FOLDER, num_outlines_per_col, NUM_OUTLINE_COLS, Outline)
+
     add_tile_to_frame(etsy_top_frame, 'etsyFrame/topFrame.png')
     add_tile_to_frame(etsy_lhs_frame, 'etsyFrame/Etsy-Filter-version2.png')
     add_image_to_frame(frame_rhs, 'etsyFrame/Etsy-table-lamp-search-result.png')
     # display_images(frame_rhs, images_clusters['outline21.jpg'], 15, 4)
 
     root.mainloop()
-
 
 
 main()
