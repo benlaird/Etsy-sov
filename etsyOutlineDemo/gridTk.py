@@ -118,7 +118,7 @@ def add_tile_to_frame(frame, img_file):
 
 
 # Images are destroyed when the frame is repopulated
-def add_image_to_frame(frame, img_file):
+def add_image_to_frame(frame, img_file, row, col, colspan=1):
     if not path.exists(img_file):
         print(f"File doesn't exist: {img_file}")
         return
@@ -127,14 +127,16 @@ def add_image_to_frame(frame, img_file):
     imgtk = ImageTk.PhotoImage(im)
     label = Label(frame, image=imgtk, bg="white")
     ThumbnailImage(img_file, imgtk, label)
-    label.grid(column=0, row=0, sticky=N, padx=0, pady=0)
+    label.grid(column=col, row=row, sticky=N, padx=0, pady=0, columnspan=colspan)
 
 
 def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool, clear_cache: bool):
     num_not_exists = 0
     num_cached = 0
     num_saved = 0
-    i = 0
+
+    add_image_to_frame(frame, 'etsyFrame/etsy-num-results.png', 0, 0, num_cols)
+    i = num_cols
     col = 0
     for img_file in images:
         img_file = img_file.replace('/root/Etsy-sov/SBIR_regression/', '/Users/rjohnsonlaird/Documents/', 1)
@@ -169,10 +171,6 @@ def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool
         label.grid(column=col, row=row, padx=5, pady=5, sticky='S')
         i += 1
 
-    # Reset the scrollbar to the top, assumes the parent widget is a canvas with a scrollbar
-    # canvas = frame.master
-    # canvas.yview_moveto('0.0')
-
     print(f"Num read from cache: {num_cached} num saved: {num_saved} num missing: {num_not_exists}")
 
 
@@ -185,6 +183,7 @@ def outline_clicked(tile, outline, event):
     frame_rhs = outline.get_frame()
     clusters = outline.get_clusters()
     display_images(frame_rhs, clusters[tile.filename], num_images_per_col, NUM_IMAGE_COLS, SHOW_IMAGE_NOS, False)
+    outline.scroll_to_top()
 
 
 def read_outline_json():
@@ -249,7 +248,7 @@ def create_frame_with_scroll(parent_widget, grid_col, grid_row, width, height):
 
     canvas.create_window((0, 0), window=content, anchor="nw")
     content.bind("<Configure>", lambda event, canvas=canvas: onFrameConfigure(canvas))
-    return content
+    return content, canvas
 
 
 def main():
@@ -277,13 +276,13 @@ def main():
     print(f"Default dpi: {dpi_value}")
     # dpi_value = 400
     # root.tk.call('tk', 'scaling', '-displayof', '.', dpi_value / 72.0)
-    # root.tk.call('tk', 'scaling','-displayof', '.', 4.0)
+    root.tk.call('tk', 'scaling','-displayof', '.', 4.0)
     # root.maxsize(1500, 400)
     root.grid_rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
 
     # content = Frame(root, bg="white", borderwidth=0, highlightbackground="white", highlightcolor="white")
-    content = create_frame_with_scroll(root, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+    content, canvas = create_frame_with_scroll(root, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
 
     etsy_top_frame = Frame(content, borderwidth=0, width=RHS_WIDTH, height=200, bg="white")
     frame_lhs = ttk.Frame(content, borderwidth=0, width=LHS_WIDTH, height=400)
@@ -308,13 +307,18 @@ def main():
     print(f"Num outlines per col: {num_outlines_per_col}")
 
     images_clusters = read_outline_json()
+    Outline.set_canvas(canvas)
     Outline.set_clusters(images_clusters)
     Outline.set_frame(frame_rhs)
     display_outlines(frame_lhs_outlines, OUTLINE_FOLDER, num_outlines_per_col, NUM_OUTLINE_COLS, Outline)
 
     add_tile_to_frame(etsy_top_frame, 'etsyFrame/topFrame.png')
     add_tile_to_frame(etsy_lhs_frame, 'etsyFrame/Etsy-Filter-version2.png')
-    add_image_to_frame(frame_rhs, 'etsyFrame/Etsy-table-lamp-search-result.png')
+    add_image_to_frame(frame_rhs, 'etsyFrame/etsy-num-results.png', 0, 0)
+    add_image_to_frame(frame_rhs, 'etsyFrame/1st-background-small.png', 1, 0)
+    add_image_to_frame(frame_rhs, 'etsyFrame/2nd-background-small.png', 2, 0)
+    add_image_to_frame(frame_rhs, 'etsyFrame/3rd-background-small.png', 3, 0)
+    add_image_to_frame(frame_rhs, 'etsyFrame/4th-background-small.png', 4, 0)
     # display_images(frame_rhs, images_clusters['outline21.jpg'], 15, 4)
 
     root.mainloop()
