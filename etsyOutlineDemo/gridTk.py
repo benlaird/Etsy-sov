@@ -25,7 +25,7 @@ LHS_WIDTH = 300
 RHS_WIDTH = WINDOW_WIDTH - LHS_WIDTH
 SHOW_IMAGE_NOS = False
 
-IMAGE_FOLDER = "/Users/rjohnsonlaird/Documents/lampshades_images/il"
+IMAGE_FOLDER = "./lampshades_images/il"
 OUTLINE_FOLDER = "./images/Outlines"
 
 global images_clusters
@@ -139,21 +139,21 @@ def display_images(frame, images, images_per_col, num_cols, show_image_nos: bool
     i = num_cols
     col = 0
     for img_file in images:
-        img_file = img_file.replace('/root/Etsy-sov/SBIR_regression/', '/Users/rjohnsonlaird/Documents/', 1)
+        img_file = img_file.replace('/root/Etsy-sov/SBIR_regression/', './', 1)
         col = i % num_cols
         row = i // num_cols
         # print(f"i: {i} row: {row} col: {col}")
         if col >= num_cols:
             break
 
-        if not path.exists(img_file):
-            num_not_exists += 1
-            continue
         (filename, ext) = os.path.splitext(img_file)
         thumb_file = filename + "-thumb" + ext
         if not clear_cache and path.exists(thumb_file):
             num_cached += 1
             im = PILImage.open(thumb_file)
+        elif not path.exists(img_file):
+            num_not_exists += 1
+            continue
         else:
             im = PILImage.open(img_file)
             im = resize(im, IMAGE_WIDTH, IMAGE_HEIGHT)
@@ -264,7 +264,7 @@ def main():
     style.configure('TFrame', background='white')
 
     screen_height = monitor_height(root)
-    WINDOW_HEIGHT = screen_height - 250
+    WINDOW_HEIGHT = screen_height - 130
     print(f"Screen height: {screen_height} window height: {WINDOW_HEIGHT}")
 
     if False:
