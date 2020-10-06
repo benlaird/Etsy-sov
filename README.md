@@ -1,1 +1,0 @@
-# etsy-summer-vision-2020
