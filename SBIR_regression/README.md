@@ -1,3 +1,6 @@
+# To run images and outlines through model and run nearest neighbors for the images
+everything_running_model_and_nearest_neighbors.ipynb
+
 # SBIR regression
 This repo contains code for the C&G paper "[Sketching out the details: Sketch-based image retrieval using convolutional neural networks with multi-stage regression](https://doi.org/10.1016/j.cag.2017.12.006)" 
 
